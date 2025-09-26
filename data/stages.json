@@ -1,0 +1,140 @@
+{
+  "City": [
+    {
+      "id": "stage_city_01",
+      "name": "Downtown Dash 1"
+    },
+    {
+      "id": "stage_city_02",
+      "name": "Downtown Dash 2"
+    },
+    {
+      "id": "stage_city_03",
+      "name": "Downtown Dash 3"
+    },
+    {
+      "id": "stage_city_04",
+      "name": "Downtown Dash 4"
+    },
+    {
+      "id": "stage_city_05",
+      "name": "Downtown Dash 5"
+    },
+    {
+      "id": "stage_city_06",
+      "name": "Downtown Dash 6"
+    },
+    {
+      "id": "stage_city_07",
+      "name": "Downtown Dash 7"
+    },
+    {
+      "id": "stage_city_08",
+      "name": "Downtown Dash 8"
+    },
+    {
+      "id": "stage_city_09",
+      "name": "Downtown Dash 9"
+    },
+    {
+      "id": "stage_city_10",
+      "name": "Downtown Dash 10"
+    },
+    {
+      "id": "stage_city_boss",
+      "name": "Skyline Showdown"
+    }
+  ],
+  "Jungle": [
+    {
+      "id": "stage_jungle_01",
+      "name": "Canopy Clash 1"
+    },
+    {
+      "id": "stage_jungle_02",
+      "name": "Canopy Clash 2"
+    },
+    {
+      "id": "stage_jungle_03",
+      "name": "Canopy Clash 3"
+    },
+    {
+      "id": "stage_jungle_04",
+      "name": "Canopy Clash 4"
+    },
+    {
+      "id": "stage_jungle_05",
+      "name": "Canopy Clash 5"
+    },
+    {
+      "id": "stage_jungle_06",
+      "name": "Canopy Clash 6"
+    },
+    {
+      "id": "stage_jungle_07",
+      "name": "Canopy Clash 7"
+    },
+    {
+      "id": "stage_jungle_08",
+      "name": "Canopy Clash 8"
+    },
+    {
+      "id": "stage_jungle_09",
+      "name": "Canopy Clash 9"
+    },
+    {
+      "id": "stage_jungle_10",
+      "name": "Canopy Clash 10"
+    },
+    {
+      "id": "stage_jungle_boss",
+      "name": "Temple Titan"
+    }
+  ],
+  "Desert": [
+    {
+      "id": "stage_desert_01",
+      "name": "Dune Duel 1"
+    },
+    {
+      "id": "stage_desert_02",
+      "name": "Dune Duel 2"
+    },
+    {
+      "id": "stage_desert_03",
+      "name": "Dune Duel 3"
+    },
+    {
+      "id": "stage_desert_04",
+      "name": "Dune Duel 4"
+    },
+    {
+      "id": "stage_desert_05",
+      "name": "Dune Duel 5"
+    },
+    {
+      "id": "stage_desert_06",
+      "name": "Dune Duel 6"
+    },
+    {
+      "id": "stage_desert_07",
+      "name": "Dune Duel 7"
+    },
+    {
+      "id": "stage_desert_08",
+      "name": "Dune Duel 8"
+    },
+    {
+      "id": "stage_desert_09",
+      "name": "Dune Duel 9"
+    },
+    {
+      "id": "stage_desert_10",
+      "name": "Dune Duel 10"
+    },
+    {
+      "id": "stage_desert_boss",
+      "name": "Sandstorm Sovereign"
+    }
+  ]
+}

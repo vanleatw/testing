@@ -1,3 +1,4 @@
+
 """A colorful, animated 2048 clone rendered in a standalone Tkinter window."""
 from __future__ import annotations
 
@@ -452,7 +453,3 @@ def main() -> None:
     root.bind("r", lambda _: app.reset_game())
     root.bind("R", lambda _: app.reset_game())
     app.run()
-
-
-if __name__ == "__main__":
-    main()

@@ -1,0 +1,96 @@
+{
+  "id": "stage_jungle_05",
+  "zone": "Jungle",
+  "background": "jungle",
+  "music": "jungle_theme.ogg",
+  "timeline": [
+    {
+      "time": 1.0,
+      "action": "spawn",
+      "params": {
+        "type": "melee",
+        "x": 900,
+        "y": 620
+      }
+    },
+    {
+      "time": 1.5,
+      "action": "barrel",
+      "params": {
+        "x": 940,
+        "y": 620
+      }
+    },
+    {
+      "time": 2.2,
+      "action": "spawn",
+      "params": {
+        "type": "bomber",
+        "x": 980,
+        "y": 620
+      }
+    },
+    {
+      "time": 3.4,
+      "action": "spawn",
+      "params": {
+        "type": "sniper",
+        "x": 1060,
+        "y": 620
+      }
+    },
+    {
+      "time": 3.9,
+      "action": "barrel",
+      "params": {
+        "x": 1020,
+        "y": 620
+      }
+    },
+    {
+      "time": 4.6,
+      "action": "hostage",
+      "params": {
+        "x": 1030,
+        "y": 620
+      }
+    },
+    {
+      "time": 4.6,
+      "action": "spawn",
+      "params": {
+        "type": "grunt",
+        "x": 1140,
+        "y": 620
+      }
+    },
+    {
+      "time": 6.4,
+      "action": "powerup",
+      "params": {
+        "kind": "slow",
+        "x": 880,
+        "y": 560,
+        "duration": 5.0
+      }
+    },
+    {
+      "time": 5.8,
+      "action": "spawn",
+      "params": {
+        "type": "melee",
+        "x": 1220,
+        "y": 620
+      }
+    },
+    {
+      "time": 6.3,
+      "action": "barrel",
+      "params": {
+        "x": 1100,
+        "y": 620
+      }
+    }
+  ],
+  "duration": 18.0
+}

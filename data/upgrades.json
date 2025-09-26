@@ -1,0 +1,23 @@
+[
+  {
+    "id": "dmg",
+    "name": "Damage Boost",
+    "cost": 80,
+    "type": "upgrade",
+    "description": "Increase base damage."
+  },
+  {
+    "id": "rof",
+    "name": "Rate of Fire",
+    "cost": 90,
+    "type": "upgrade",
+    "description": "Shoot faster."
+  },
+  {
+    "id": "reload",
+    "name": "Quick Reload",
+    "cost": 70,
+    "type": "upgrade",
+    "description": "Reload speed boost."
+  }
+]

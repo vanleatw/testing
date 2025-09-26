@@ -1,0 +1,47 @@
+{
+  "id": "stage_desert_boss",
+  "zone": "Desert",
+  "background": "desert",
+  "music": "desert_theme.ogg",
+  "timeline": [
+    {
+      "time": 1.0,
+      "action": "camera_pan",
+      "params": {
+        "target_x": 1200
+      }
+    },
+    {
+      "time": 2.0,
+      "action": "barrel",
+      "params": {
+        "x": 1150,
+        "y": 620
+      }
+    },
+    {
+      "time": 3.0,
+      "action": "boss",
+      "params": {}
+    },
+    {
+      "time": 4.5,
+      "action": "hostage",
+      "params": {
+        "x": 1100,
+        "y": 620
+      }
+    },
+    {
+      "time": 6.0,
+      "action": "powerup",
+      "params": {
+        "kind": "spread",
+        "x": 1080,
+        "y": 560,
+        "duration": 6.0
+      }
+    }
+  ],
+  "duration": 40.0
+}

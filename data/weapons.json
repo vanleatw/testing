@@ -1,0 +1,30 @@
+[
+  {
+    "id": "pistol",
+    "name": "Sidearm",
+    "cost": 0,
+    "type": "weapon",
+    "description": "Reliable and accurate."
+  },
+  {
+    "id": "smg",
+    "name": "SMG",
+    "cost": 120,
+    "type": "weapon",
+    "description": "High fire rate for combos."
+  },
+  {
+    "id": "shotgun",
+    "name": "Shotgun",
+    "cost": 180,
+    "type": "weapon",
+    "description": "Close range spread shot."
+  },
+  {
+    "id": "carbine",
+    "name": "Carbine",
+    "cost": 260,
+    "type": "weapon",
+    "description": "High damage precision."
+  }
+]

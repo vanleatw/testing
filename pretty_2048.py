@@ -1,285 +1,455 @@
-"""A vibrant, terminal-based version of 2048 implemented with curses.
 
-Run the script and use the arrow keys to slide tiles around.
-Combine matching tiles to reach 2048 (or beyond) while enjoying
-colorful feedback and smooth board rendering.
-"""
+"""A colorful, animated 2048 clone rendered in a standalone Tkinter window."""
 from __future__ import annotations
 
-import curses
-import itertools
 import random
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
-
+import tkinter as tk
+import tkinter.font as tkfont
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 BOARD_SIZE = 4
 WIN_TILE = 2048
+GRID_PADDING = 20
+TILE_SIZE = 100
+TILE_GAP = 12
+ANIMATION_STEPS = 10
+ANIMATION_DELAY_MS = 15
+NEW_TILE_ANIMATION_STEPS = 6
+NEW_TILE_DELAY_MS = 20
 
-# Mapping from tile value to (foreground, background) color pair names.
-# Colors are defined in ``ColorPalette.setup``.
-COLOR_MAP: Dict[int, str] = {
-    0: "empty",
-    2: "c2",
-    4: "c4",
-    8: "c8",
-    16: "c16",
-    32: "c32",
-    64: "c64",
-    128: "c128",
-    256: "c256",
-    512: "c512",
-    1024: "c1024",
-    2048: "c2048",
+
+TILE_COLORS: Dict[int, Tuple[str, str]] = {
+    0: ("#cdc1b4", "#776e65"),
+    2: ("#eee4da", "#776e65"),
+    4: ("#ede0c8", "#776e65"),
+    8: ("#f2b179", "#f9f6f2"),
+    16: ("#f59563", "#f9f6f2"),
+    32: ("#f67c5f", "#f9f6f2"),
+    64: ("#f65e3b", "#f9f6f2"),
+    128: ("#edcf72", "#f9f6f2"),
+    256: ("#edcc61", "#f9f6f2"),
+    512: ("#edc850", "#f9f6f2"),
+    1024: ("#edc53f", "#f9f6f2"),
+    2048: ("#edc22e", "#f9f6f2"),
 }
 
-
-def add_random_tile(board: List[List[int]]) -> bool:
-    """Insert a random tile (2 or 4) in an empty spot.
-
-    Returns ``True`` if a tile was placed, otherwise ``False`` when the board
-    is full.
-    """
-
-    empties = [(r, c) for r in range(BOARD_SIZE) for c in range(BOARD_SIZE) if board[r][c] == 0]
-    if not empties:
-        return False
-
-    r, c = random.choice(empties)
-    board[r][c] = 4 if random.random() < 0.1 else 2
-    return True
-
-
-def compress(line: List[int]) -> Tuple[List[int], bool]:
-    """Compress a row or column towards the front, removing zeros."""
-
-    new_line = [value for value in line if value != 0]
-    did_compress = len(new_line) != len(line)
-    new_line.extend([0] * (len(line) - len(new_line)))
-    return new_line, did_compress
-
-
-def merge(line: List[int]) -> Tuple[List[int], int]:
-    """Merge a compressed line and return the new line and score gained."""
-
-    score = 0
-    for i in range(len(line) - 1):
-        if line[i] != 0 and line[i] == line[i + 1]:
-            line[i] *= 2
-            line[i + 1] = 0
-            score += line[i]
-    return line, score
-
-
-def reverse(line: List[int]) -> List[int]:
-    return list(reversed(line))
-
-
-def transpose(board: List[List[int]]) -> List[List[int]]:
-    return [list(row) for row in zip(*board)]
-
-
-def move_left(board: List[List[int]]) -> Tuple[List[List[int]], int, bool]:
-    score_gain = 0
-    moved = False
-    new_board: List[List[int]] = []
-
-    for row in board:
-        compressed, did_compress = compress(row)
-        merged, gained = merge(compressed)
-        compressed_after_merge, did_compress_again = compress(merged)
-        new_board.append(compressed_after_merge)
-        score_gain += gained
-        moved = moved or did_compress or did_compress_again or gained > 0
-
-    return new_board, score_gain, moved
-
-
-def move_right(board: List[List[int]]) -> Tuple[List[List[int]], int, bool]:
-    reversed_rows = [reverse(row) for row in board]
-    moved_board, score_gain, moved = move_left(reversed_rows)
-    restored = [reverse(row) for row in moved_board]
-    return restored, score_gain, moved
-
-
-def move_up(board: List[List[int]]) -> Tuple[List[List[int]], int, bool]:
-    transposed = transpose(board)
-    moved_board, score_gain, moved = move_left(transposed)
-    restored = transpose(moved_board)
-    return restored, score_gain, moved
-
-
-def move_down(board: List[List[int]]) -> Tuple[List[List[int]], int, bool]:
-    transposed = transpose(board)
-    moved_board, score_gain, moved = move_right(transposed)
-    restored = transpose(moved_board)
-    return restored, score_gain, moved
-
-
-MOVES = {
-    curses.KEY_LEFT: move_left,
-    curses.KEY_RIGHT: move_right,
-    curses.KEY_UP: move_up,
-    curses.KEY_DOWN: move_down,
-}
+BEYOND_COLOR = ("#3c3a32", "#f9f6f2")
+BACKGROUND_COLOR = "#bbada0"
+BOARD_BACKGROUND = "#cdc1b4"
 
 
 @dataclass
-class GameState:
-    board: List[List[int]] = field(default_factory=lambda: [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)])
-    score: int = 0
-    best_score: int = 0
-    won: bool = False
-    over: bool = False
+class TileWidget:
+    tile_id: int
+    value: int
+    row: int
+    col: int
+    canvas: tk.Canvas
+    font_map: Dict[str, tkfont.Font]
 
-    def reset(self) -> None:
-        self.board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+    def __post_init__(self) -> None:
+        self.rect = self.canvas.create_rectangle(0, 0, 0, 0, width=0, tags=("tile", f"tile-{self.tile_id}"))
+        self.text = self.canvas.create_text(0, 0, tags=("tile-text", f"tile-text-{self.tile_id}"))
+        self.update_position(self.row, self.col)
+        self.update_style()
+
+    def grid_to_pixel(self, row: int, col: int) -> Tuple[float, float]:
+        x = GRID_PADDING + col * (TILE_SIZE + TILE_GAP)
+        y = GRID_PADDING + row * (TILE_SIZE + TILE_GAP)
+        return x, y
+
+    def update_position(self, row: int, col: int) -> None:
+        self.row = row
+        self.col = col
+        x, y = self.grid_to_pixel(row, col)
+        self.canvas.coords(self.rect, x, y, x + TILE_SIZE, y + TILE_SIZE)
+        self.canvas.coords(self.text, x + TILE_SIZE / 2, y + TILE_SIZE / 2)
+
+    def move_by(self, dx: float, dy: float) -> None:
+        self.canvas.move(self.rect, dx, dy)
+        self.canvas.move(self.text, dx, dy)
+
+    def update_style(self) -> None:
+        fg_bg = TILE_COLORS.get(self.value, BEYOND_COLOR)
+        bg_color, fg_color = fg_bg
+        self.canvas.itemconfigure(self.rect, fill=bg_color)
+        font = self._font_for_value(self.value)
+        self.canvas.itemconfigure(self.text, text=str(self.value), fill=fg_color, font=font)
+
+    def set_value(self, value: int) -> None:
+        self.value = value
+        self.update_style()
+
+    def _font_for_value(self, value: int) -> tkfont.Font:
+        digits = len(str(value))
+        if digits <= 2:
+            return self.font_map["large"]
+        if digits == 3:
+            return self.font_map["medium"]
+        return self.font_map["small"]
+
+    def destroy(self) -> None:
+        self.canvas.delete(self.rect)
+        self.canvas.delete(self.text)
+
+
+class Game2048App:
+    def __init__(self, root: tk.Tk) -> None:
+        self.root = root
+        self.root.title("2048 - Vibrant Edition")
+        self.root.resizable(False, False)
+
+        width = GRID_PADDING * 2 + BOARD_SIZE * TILE_SIZE + (BOARD_SIZE - 1) * TILE_GAP
+        height = width + 120
+        self.root.geometry(f"{width}x{height}")
+
+        self.header = tk.Frame(root, bg=BACKGROUND_COLOR)
+        self.header.pack(fill=tk.X)
+
+        self.title_label = tk.Label(
+            self.header,
+            text="2048",
+            font=tkfont.Font(size=28, weight="bold"),
+            bg=BACKGROUND_COLOR,
+            fg="#f9f6f2",
+        )
+        self.title_label.pack(side=tk.LEFT, padx=20, pady=10)
+
+        self.score_var = tk.StringVar()
+        self.best_var = tk.StringVar()
+        self.score_box = self._build_score_box("SCORE", self.score_var)
+        self.best_box = self._build_score_box("BEST", self.best_var)
+        self.best_box.pack(side=tk.RIGHT, padx=20)
+        self.score_box.pack(side=tk.RIGHT, padx=10)
+
+        self.message_var = tk.StringVar(value="Use arrow keys or WASD to play")
+        self.message_label = tk.Label(
+            root,
+            textvariable=self.message_var,
+            font=tkfont.Font(size=12),
+            bg=BACKGROUND_COLOR,
+            fg="#f9f6f2",
+        )
+        self.message_label.pack(fill=tk.X, pady=(0, 8))
+
+        self.canvas = tk.Canvas(
+            root,
+            width=width,
+            height=width,
+            bg=BACKGROUND_COLOR,
+            highlightthickness=0,
+        )
+        self.canvas.pack(pady=(0, 20))
+
+        self.font_map = {
+            "large": tkfont.Font(size=32, weight="bold"),
+            "medium": tkfont.Font(size=28, weight="bold"),
+            "small": tkfont.Font(size=22, weight="bold"),
+        }
+
+        self._draw_board_background()
+
+        self.board: List[List[Optional[TileWidget]]] = [[None] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+        self.tiles: Dict[int, TileWidget] = {}
+        self.tile_id_counter = 0
         self.score = 0
-        self.won = False
-        self.over = False
-        add_random_tile(self.board)
-        add_random_tile(self.board)
+        self.best_score = 0
 
-    def apply_move(self, move_func) -> None:
-        if self.over:
+        self.animating = False
+        self.animation_state: Optional[Dict[str, object]] = None
+        self.start_positions: Dict[int, Tuple[int, int]] = {}
+
+        self.reset_game()
+        self.root.bind("<Key>", self.on_key)
+
+    def _build_score_box(self, label: str, value_var: tk.StringVar) -> tk.Frame:
+        frame = tk.Frame(self.header, bg="#bbada0", padx=18, pady=10)
+        tk.Label(frame, text=label, font=tkfont.Font(size=12, weight="bold"), bg="#bbada0", fg="#eee4da").pack()
+        tk.Label(frame, textvariable=value_var, font=tkfont.Font(size=18, weight="bold"), bg="#bbada0", fg="#ffffff").pack()
+        return frame
+
+    def _draw_board_background(self) -> None:
+        self.canvas.delete("grid")
+        board_size_px = GRID_PADDING * 2 + BOARD_SIZE * TILE_SIZE + (BOARD_SIZE - 1) * TILE_GAP
+        self.canvas.create_rectangle(
+            GRID_PADDING / 2,
+            GRID_PADDING / 2,
+            board_size_px - GRID_PADDING / 2,
+            board_size_px - GRID_PADDING / 2,
+            fill=BOARD_BACKGROUND,
+            outline="",
+            tags="grid",
+        )
+
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                x = GRID_PADDING + col * (TILE_SIZE + TILE_GAP)
+                y = GRID_PADDING + row * (TILE_SIZE + TILE_GAP)
+                self.canvas.create_rectangle(
+                    x,
+                    y,
+                    x + TILE_SIZE,
+                    y + TILE_SIZE,
+                    fill=TILE_COLORS[0][0],
+                    outline="",
+                    tags="grid",
+                )
+
+    def reset_game(self) -> None:
+        self.animating = False
+        self.animation_state = None
+        self.start_positions = {}
+        self.clear_tiles()
+        self.board = [[None] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+        self.tiles = {}
+        self.tile_id_counter = 0
+        self.score = 0
+        self.update_score_boxes()
+        self.message_var.set("Use arrow keys or WASD to play")
+
+        self.add_random_tile(animate=False)
+        self.add_random_tile(animate=False)
+
+    def clear_tiles(self) -> None:
+        for tile in list(self.tiles.values()):
+            tile.destroy()
+        self.tiles.clear()
+
+    def on_key(self, event: tk.Event) -> None:
+        if self.animating:
             return
 
-        new_board, gained, moved = move_func(self.board)
+        key_map = {
+            "Left": "left",
+            "Right": "right",
+            "Up": "up",
+            "Down": "down",
+            "a": "left",
+            "d": "right",
+            "w": "up",
+            "s": "down",
+        }
+        direction = key_map.get(event.keysym)
+        if not direction:
+            return
+
+        self.queue_move(direction)
+
+    def queue_move(self, direction: str) -> None:
+        self.start_positions = {tile_id: (tile.row, tile.col) for tile_id, tile in self.tiles.items()}
+        moved, movements, merges, _ = self.compute_move(direction)
         if not moved:
             return
 
-        self.board = new_board
-        self.score += gained
-        if self.score > self.best_score:
-            self.best_score = self.score
-        add_random_tile(self.board)
-        self.won = self.won or any(tile >= WIN_TILE for tile in itertools.chain.from_iterable(self.board))
-        if not any(valid_move_available(self.board, func) for func in MOVES.values()):
-            self.over = True
+        self.animating = True
+        self.start_animation(movements, merges)
 
+    def compute_move(
+        self, direction: str
+    ) -> Tuple[bool, Dict[int, Tuple[int, int]], List[Tuple[int, int]], int]:
+        movements: Dict[int, Tuple[int, int]] = {}
+        merges: List[Tuple[int, int]] = []
+        score_gain = 0
 
-@dataclass
-class ColorPalette:
-    pairs: Dict[str, int] = field(default_factory=dict)
+        def line_iterator() -> List[List[Tuple[int, int]]]:
+            lines: List[List[Tuple[int, int]]] = []
+            if direction == "left":
+                for r in range(BOARD_SIZE):
+                    lines.append([(r, c) for c in range(BOARD_SIZE)])
+            elif direction == "right":
+                for r in range(BOARD_SIZE):
+                    lines.append([(r, c) for c in reversed(range(BOARD_SIZE))])
+            elif direction == "up":
+                for c in range(BOARD_SIZE):
+                    lines.append([(r, c) for r in range(BOARD_SIZE)])
+            elif direction == "down":
+                for c in range(BOARD_SIZE):
+                    lines.append([(r, c) for r in reversed(range(BOARD_SIZE))])
+            return lines
 
-    def setup(self) -> None:
-        curses.start_color()
-        curses.use_default_colors()
+        moved = False
+        lines = line_iterator()
+        for coords in lines:
+            tiles_line = [self.board[r][c] for r, c in coords if self.board[r][c] is not None]
+            if not tiles_line:
+                continue
+            new_line: List[Optional[TileWidget]] = [None] * BOARD_SIZE
+            target_index = 0
+            idx = 0
+            while idx < len(tiles_line):
+                current_tile = tiles_line[idx]
+                assert current_tile is not None
+                current_target = coords[target_index]
+                if idx + 1 < len(tiles_line) and tiles_line[idx + 1].value == current_tile.value:
+                    next_tile = tiles_line[idx + 1]
+                    assert next_tile is not None
+                    merges.append((current_tile.tile_id, next_tile.tile_id))
+                    current_tile.value *= 2
+                    score_gain += current_tile.value
+                    movements[current_tile.tile_id] = current_target
+                    movements[next_tile.tile_id] = current_target
+                    new_line[target_index] = current_tile
+                    idx += 2
+                else:
+                    movements[current_tile.tile_id] = current_target
+                    new_line[target_index] = current_tile
+                    idx += 1
+                target_index += 1
 
-        def add_pair(name: str, fg: int, bg: int) -> None:
-            index = len(self.pairs) + 1
-            curses.init_pair(index, fg, bg)
-            self.pairs[name] = index
+            for fill_index in range(target_index, BOARD_SIZE):
+                new_line[fill_index] = None
 
-        add_pair("empty", curses.COLOR_WHITE, -1)
-        add_pair("c2", curses.COLOR_YELLOW, -1)
-        add_pair("c4", curses.COLOR_MAGENTA, -1)
-        add_pair("c8", curses.COLOR_CYAN, -1)
-        add_pair("c16", curses.COLOR_GREEN, -1)
-        add_pair("c32", curses.COLOR_BLUE, -1)
-        add_pair("c64", curses.COLOR_RED, -1)
-        add_pair("c128", curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        add_pair("c256", curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-        add_pair("c512", curses.COLOR_CYAN, curses.COLOR_BLACK)
-        add_pair("c1024", curses.COLOR_GREEN, curses.COLOR_BLACK)
-        add_pair("c2048", curses.COLOR_RED, curses.COLOR_BLACK)
+            for placement_idx, (r, c) in enumerate(coords):
+                tile = new_line[placement_idx]
+                self.board[r][c] = tile
 
-    def color_for(self, value: int) -> int:
-        name = COLOR_MAP.get(value, "c2048")
-        pair_index = self.pairs.get(name, 0)
-        return curses.color_pair(pair_index)
+        for tile_id, (target_row, target_col) in movements.items():
+            tile = self.tiles.get(tile_id)
+            if tile is None:
+                continue
+            start = self.start_positions.get(tile_id, (tile.row, tile.col))
+            if start != (target_row, target_col):
+                moved = True
+            tile.row = target_row
+            tile.col = target_col
 
+        if merges:
+            moved = True
 
-def valid_move_available(board: List[List[int]], move_func) -> bool:
-    new_board, _, moved = move_func(board)
-    return moved
+        if moved:
+            self.score += score_gain
+            if self.score > self.best_score:
+                self.best_score = self.score
+            self.update_score_boxes()
+            if any(tile.value >= WIN_TILE for tile in self.tiles.values()):
+                self.message_var.set("You made a 2048 tile! Keep going!")
 
+        return moved, movements, merges, score_gain
 
-def draw_board(stdscr, state: GameState, palette: ColorPalette) -> None:
-    stdscr.clear()
+    def start_animation(
+        self, movements: Dict[int, Tuple[int, int]], merges: List[Tuple[int, int]]
+    ) -> None:
+        vectors: Dict[int, Tuple[float, float]] = {}
+        for tile_id, (target_row, target_col) in movements.items():
+            tile = self.tiles.get(tile_id)
+            if tile is None:
+                continue
+            start_row, start_col = self.start_positions.get(tile_id, (target_row, target_col))
+            start_x, start_y = tile.grid_to_pixel(start_row, start_col)
+            end_x, end_y = tile.grid_to_pixel(target_row, target_col)
+            dx = (end_x - start_x) / ANIMATION_STEPS
+            dy = (end_y - start_y) / ANIMATION_STEPS
+            vectors[tile_id] = (dx, dy)
 
-    height, width = stdscr.getmaxyx()
-    board_width = BOARD_SIZE * 6 + 1
-    board_height = BOARD_SIZE * 2 + 1
-    offset_y = max(2, (height - board_height) // 2)
-    offset_x = max(2, (width - board_width) // 2)
+        self.animation_state = {
+            "step": 0,
+            "movements": movements,
+            "merges": merges,
+            "vectors": vectors,
+        }
+        self.perform_animation_step()
 
-    title = "✨ Fancy 2048 ✨"
-    stdscr.attron(curses.A_BOLD)
-    stdscr.addstr(1, max(2, (width - len(title)) // 2), title)
-    stdscr.attroff(curses.A_BOLD)
+    def perform_animation_step(self) -> None:
+        assert self.animation_state is not None
+        step = self.animation_state["step"]
+        vectors: Dict[int, Tuple[float, float]] = self.animation_state["vectors"]  # type: ignore[assignment]
 
-    info = f"Score: {state.score}  |  Best: {state.best_score}"
-    stdscr.addstr(offset_y - 2, max(2, (width - len(info)) // 2), info)
+        if step < ANIMATION_STEPS:
+            for tile_id, (dx, dy) in vectors.items():
+                tile = self.tiles.get(tile_id)
+                if tile is None:
+                    continue
+                tile.move_by(dx, dy)
+            self.animation_state["step"] = step + 1
+            self.root.after(ANIMATION_DELAY_MS, self.perform_animation_step)
+            return
 
-    if state.won:
-        stdscr.addstr(offset_y + board_height + 1, offset_x, "You made it to 2048! Keep going if you like.", curses.A_BOLD)
-    if state.over:
-        stdscr.addstr(offset_y + board_height + 2, offset_x, "No more moves! Press 'r' to restart or 'q' to quit.", curses.A_BOLD)
-    else:
-        stdscr.addstr(offset_y + board_height + 2, offset_x, "Use arrow keys to slide tiles. Press 'q' to quit, 'r' to restart.")
+        movements: Dict[int, Tuple[int, int]] = self.animation_state["movements"]  # type: ignore[assignment]
+        merges: List[Tuple[int, int]] = self.animation_state["merges"]  # type: ignore[assignment]
 
-    # Draw horizontal borders
-    horizontal_border = "+" + "+".join("-" * 5 for _ in range(BOARD_SIZE)) + "+"
-    for r in range(BOARD_SIZE + 1):
-        y = offset_y + r * 2
-        stdscr.addstr(y, offset_x, horizontal_border)
+        for tile_id, (target_row, target_col) in movements.items():
+            tile = self.tiles.get(tile_id)
+            if tile is None:
+                continue
+            tile.update_position(target_row, target_col)
 
-    # Draw cells with vertical separators and colorized text
-    for r in range(BOARD_SIZE):
-        row_y = offset_y + r * 2 + 1
-        stdscr.addch(row_y, offset_x, "|")
-        for c in range(BOARD_SIZE):
-            value = state.board[r][c]
-            text = f"{value}" if value else ""
-            cell_width = 5
-            padded = text.center(cell_width)
-            attr = palette.color_for(value)
-            if attr:
-                stdscr.attron(attr | curses.A_BOLD)
-            stdscr.addstr(row_y, offset_x + 1 + c * 6, padded)
-            if attr:
-                stdscr.attroff(attr | curses.A_BOLD)
-            stdscr.addch(row_y, offset_x + (c + 1) * 6, "|")
+        for keep_id, remove_id in merges:
+            keeper = self.tiles.get(keep_id)
+            if keeper is not None:
+                keeper.update_style()
+            to_remove = self.tiles.get(remove_id)
+            if to_remove is not None:
+                to_remove.destroy()
+                del self.tiles[remove_id]
 
-    stdscr.refresh()
+        self.animation_state = None
+        self.animating = False
+        self.update_score_boxes()
 
+        self.add_random_tile(animate=True)
+        if not self.moves_available():
+            self.message_var.set("No more moves! Press R to restart.")
+        elif any(tile.value >= WIN_TILE for tile in self.tiles.values()):
+            self.message_var.set("You made a 2048 tile! Keep going!")
+        else:
+            self.message_var.set("Use arrow keys or WASD to play")
 
-def game_loop(stdscr) -> None:
-    curses.curs_set(0)
-    stdscr.nodelay(False)
-    stdscr.keypad(True)
+    def add_random_tile(self, animate: bool) -> None:
+        empties = [(r, c) for r in range(BOARD_SIZE) for c in range(BOARD_SIZE) if self.board[r][c] is None]
+        if not empties:
+            return
+        row, col = random.choice(empties)
+        value = 4 if random.random() < 0.1 else 2
+        self.tile_id_counter += 1
+        tile = TileWidget(self.tile_id_counter, value, row, col, self.canvas, self.font_map)
+        self.tiles[tile.tile_id] = tile
+        self.board[row][col] = tile
+        tile.update_style()
+        if animate:
+            self.animate_new_tile(tile, step=0)
 
-    palette = ColorPalette()
-    palette.setup()
+    def animate_new_tile(self, tile: TileWidget, step: int) -> None:
+        if tile.tile_id not in self.tiles:
+            return
+        scale = 0.6 + 0.4 * (step / max(1, NEW_TILE_ANIMATION_STEPS))
+        x, y = tile.grid_to_pixel(tile.row, tile.col)
+        size = TILE_SIZE * scale
+        x_offset = (TILE_SIZE - size) / 2
+        y_offset = (TILE_SIZE - size) / 2
+        self.canvas.coords(tile.rect, x + x_offset, y + y_offset, x + x_offset + size, y + y_offset + size)
+        self.canvas.coords(tile.text, x + TILE_SIZE / 2, y + TILE_SIZE / 2)
+        if step < NEW_TILE_ANIMATION_STEPS:
+            self.root.after(NEW_TILE_DELAY_MS, self.animate_new_tile, tile, step + 1)
+        else:
+            tile.update_position(tile.row, tile.col)
 
-    state = GameState()
-    state.reset()
+    def moves_available(self) -> bool:
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                tile = self.board[row][col]
+                if tile is None:
+                    return True
+                for dr, dc in ((0, 1), (1, 0)):
+                    nr, nc = row + dr, col + dc
+                    if nr < BOARD_SIZE and nc < BOARD_SIZE:
+                        neighbor = self.board[nr][nc]
+                        if neighbor is None or neighbor.value == tile.value:
+                            return True
+        return False
 
-    draw_board(stdscr, state, palette)
+    def update_score_boxes(self) -> None:
+        self.score_var.set(str(self.score))
+        self.best_score = max(self.best_score, self.score)
+        self.best_var.set(str(self.best_score))
 
-    while True:
-        key = stdscr.getch()
-        if key in (ord("q"), ord("Q")):
-            break
-        if key in (ord("r"), ord("R")):
-            state.reset()
-            draw_board(stdscr, state, palette)
-            continue
-        move_func = MOVES.get(key)
-        if move_func is None:
-            continue
-        state.apply_move(move_func)
-        draw_board(stdscr, state, palette)
+    def run(self) -> None:
+        self.root.mainloop()
 
 
 def main() -> None:
-    try:
-        curses.wrapper(game_loop)
-    except curses.error:
-        print("This game needs a terminal that supports color and cursor movement.")
-        print("Try resizing your terminal or running it locally in a full-featured terminal emulator.")
-
-
-if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = Game2048App(root)
+    root.bind("r", lambda _: app.reset_game())
+    root.bind("R", lambda _: app.reset_game())
+    app.run()
